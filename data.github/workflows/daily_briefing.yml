@@ -1,1 +1,46 @@
+name: Daily Briefing Auto Update
+
+on:
+  schedule:
+    - cron: '50 22 * * *'   # KST 07:50 (장전 + 한미일 + 미국산업 + 사회테마)
+    - cron: '50 4 * * *'    # KST 13:50 (장중 국내시황)
+    - cron: '50 6 * * *'    # KST 15:50 (장마감 국내시황)
+  workflow_dispatch:
+    inputs:
+      slot:
+        description: '실행할 시간대 (08, 14, 16, all)'
+        required: false
+        default: 'all'
+
+permissions:
+  contents: write
+
+jobs:
+  update-briefing:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate briefing
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          BRIEFING_SLOT: ${{ github.event.inputs.slot }}
+        run: python generate_briefing.py
+
+      - name: Commit and push updated data
+        run: |
+          git config user.name "Briefing Bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add data/
+          git diff --staged --quiet || git commit -m "Update briefing $(date +'%Y-%m-%d')"
+          git push
 
